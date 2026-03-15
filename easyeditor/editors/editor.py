@@ -15,8 +15,6 @@ from transformers import T5ForConditionalGeneration, T5Tokenizer
 from transformers import GPT2TokenizerFast, GPT2Tokenizer
 # from accelerate import Accelerator
 from ..util.globals import *
-from .singleton_editor import SingletonEditor
-from .batch_editor import BatchEditor
 from ..evaluate import compute_edit_quality, compute_icl_edit_quality, compute_sent_metric
 from ..util import nethook
 from ..util.hparams import HyperParams

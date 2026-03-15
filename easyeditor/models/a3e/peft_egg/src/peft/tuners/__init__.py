@@ -23,4 +23,4 @@ from .adalora import AdaLoraConfig, AdaLoraModel
 from .p_tuning import PromptEncoder, PromptEncoderConfig, PromptEncoderReparameterizationType
 from .prefix_tuning import PrefixEncoder, PrefixTuningConfig
 from .prompt_tuning import PromptEmbedding, PromptTuningConfig, PromptTuningInit
-from .melo import MeloConfig, MeloModel, TpatcherConfig, TpatcherModel
+from .melo import MeloConfig, MeloModel
