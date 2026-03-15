@@ -8,7 +8,7 @@ import torch
 import logging
 import numpy as np
 import random
-from ..models.melo.melo import LORA
+from ..models.a3e.a3e import LORA
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModel
 from transformers import LlamaTokenizer, LlamaForCausalLM
 from transformers import T5ForConditionalGeneration, T5Tokenizer
@@ -29,7 +29,7 @@ import re
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                     datefmt = '%m/%d/%Y %H:%M:%S',
                     level = logging.INFO)
-METHOD = "grace"
+METHOD = "a3e"
 LOG = logging.getLogger(__name__)
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 
@@ -337,24 +337,6 @@ class BaseEditor:
         else:
             #self.origin_model = None
             self.origin_model = copy.deepcopy(self.model)
-
-        
-        #memory = list()
-        if self.alg_name == "TPATCHER" and len(self.memory) == 0:
-            for i, mem_request in enumerate(kwargs["mem_requests"]):
-                with torch.no_grad(), nethook.TraceDict(
-                    self.model,
-                    list(self.hparams.model.target_modules),
-                    retain_input=True,
-                    retain_output=False
-                ) as td:
-                    rewrite_prompts = mem_request
-                    inp = self.tok(
-                        rewrite_prompts,
-                        return_tensors="pt",
-                    ).to(self.hparams.device)
-                    _ = self.model(**inp)
-                    self.memory.append(td.input)
 
         for i, request in enumerate(requests):
             #print(request)
@@ -724,7 +706,7 @@ class BaseEditor:
 
         if isinstance(edited_model, LORA):
             edited_model=edited_model.model
-        #for melo
+        #for a3e
         if "zsre" in kwargs['pre_file'] or "counterfact" in kwargs['pre_file'] or "recent" in kwargs['pre_file']:
             for i, request in enumerate(requests):
                 if i >= 1:
@@ -1248,7 +1230,7 @@ class BaseEditor:
                     "time": exec_time,
                     "post": compute_edit_quality(edited_model, self.model_name, self.hparams, self.tok, request, self.hparams.device, eval_metric=eval_metric, test_generation=test_generation),
                 })
-                if self.alg_name == 'KN' or self.alg_name == 'GRACE':
+                if self.alg_name == 'KN':
                     #with torch.no_grad():
                         #weights_copy() # unpatch_fn
                     pass

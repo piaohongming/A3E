@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, Any, List
+from typing import List
 from ...util.hparams import HyperParams
 import yaml
 
@@ -31,8 +31,8 @@ class MODELHyperParams(HyperParams):
     tokenizer_name: str
     fan_in_fan_out: bool
     target_modules: list[str]
-    pt: str # set this to 'hallucination' inside your checkpoint directory
-    grace_layer: str
+    pt: str
+    grace_layer: list[str]
 @dataclass
 class LoRAHyperParams(HyperParams):
   cls_name: str
@@ -53,15 +53,7 @@ class LoRAHyperParams(HyperParams):
   lora_dropout: float
  
 @dataclass
-class MELOMultimodalHyperParams(HyperParams):
-    # Multimodal
-    qformer_name_or_path: str
-    state_dict_file: str
-
-    # Image_dir
-    coco_image: str
-    rephrase_image: str
-
+class A3EHyperParams(HyperParams):
     model_name: str
     alg_name: str
     model_parallel: bool
@@ -73,17 +65,8 @@ class MELOMultimodalHyperParams(HyperParams):
     grace: GRACEHyperParams
     model: MODELHyperParams
     lora: LoRAHyperParams
-
-    # Others
-    name: str
-    model_name: str
-    model_class: str
-    tokenizer_class: str
-    tokenizer_name: str
-    qformer_checkpoint: Optional[str] = None
-    freeze_qformer: bool = True
-    pretrained_ckpt: Optional[str] = None
-    exact_match: bool = False   #blip和minigpt4算loss时有用到
+    fp16: bool
+    edit_type: str
     
     @classmethod
     def from_hparams(cls, hparams_name_or_path: str):
@@ -94,8 +77,8 @@ class MELOMultimodalHyperParams(HyperParams):
             config = yaml.safe_load(stream)
             config = super().construct_float_from_scientific_notation(config)
 
-        assert (config and config['alg_name'] == 'MELO') or print(
-            f'GraceHyperParams can not load from {hparams_name_or_path}, '
+        assert (config and config['alg_name'] == 'A3E') or print(
+            f'A3EHyperParams can not load from {hparams_name_or_path}, '
             f'alg_name is {config["alg_name"]} ')
         
         grace_config = GRACEHyperParams(**config['grace'])

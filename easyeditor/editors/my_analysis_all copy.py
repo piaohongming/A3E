@@ -5,7 +5,7 @@ import torch, numpy
 from collections import defaultdict
 from easyeditor.util import nethook
 from easyeditor.editors import BaseEditor
-from easyeditor.models import MELOHyperParams, GraceHyperParams
+from easyeditor.models import A3EHyperParams
 
 #sys.path.append("../..")
 from easyeditor.editors.causal_trace import (
@@ -1864,9 +1864,7 @@ model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch_dtype
 #{0: "20GiB", 1: "31GiB", 2: "0GiB", 3: "31GiB", 4: "0GiB", 5: "0GiB", 6: "0GiB", 7: "0GiB"}
 '''
 
-hparams = MELOHyperParams.from_hparams('/home/hmpiao/EasyEdit/hparams/MELO/llama3-8b.yaml')
-#hparams = MELOHyperParams.from_hparams('/home/hmpiao/EasyEdit/hparams/TPATCHER/llama3-8b.yaml')
-#hparams = GraceHyperParams.from_hparams('/home/hmpiao/EasyEdit/hparams/GRACE/llama3-8b.yaml')
+hparams = A3EHyperParams.from_hparams('/home/hmpiao/EasyEdit_method/hparams/A3E/llama3-8b.yaml')
 editor = BaseEditor.from_hparams(hparams)
 
 #tok = AutoTokenizer.from_pretrained(model_name)

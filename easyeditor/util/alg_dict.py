@@ -9,9 +9,8 @@ from ..dataset import ZsreDataset, CounterFactDataset, CaptionDataset, VQADatase
 from ..models.ike import IKEHyperParams, apply_ike_to_model, apply_ike_to_multimodal_model, apply_ike_to_per_model
 from ..models.ft_api import FTApiHyperParams, apply_ft_api_to_model
 from ..models.lora import LoRAHyperParams, apply_lora_to_model
-from ..models.grace import GraceHyperParams, apply_grace_to_model
 from ..models.pmet import PMETHyperParams, apply_pmet_to_model
-from ..models.melo import MELOHyperParams, apply_melo_to_model, apply_melo_to_multimodal_model
+from ..models.a3e import A3EHyperParams, apply_a3e_to_model, apply_a3e_to_multimodal_model
 
 ALG_DICT = {
     'ROME': apply_rome_to_model,
@@ -24,9 +23,8 @@ ALG_DICT = {
     'IKE': apply_ike_to_model,
     'FT-Api': apply_ft_api_to_model,
     'LoRA': apply_lora_to_model,
-    'GRACE': apply_grace_to_model,
     'PMET': apply_pmet_to_model,
-    'MELO': apply_melo_to_model,
+    'A3E': apply_a3e_to_model,
 }
 
 ALG_MULTIMODAL_DICT = {
@@ -34,7 +32,7 @@ ALG_MULTIMODAL_DICT = {
     'SERAC': SeracMultimodalRewriteExecutor().apply_to_model,
     'SERAC_MULTI': SeracMultimodalRewriteExecutor().apply_to_model,
     'IKE': apply_ike_to_multimodal_model,
-    'MELO': apply_melo_to_multimodal_model
+    'A3E': apply_a3e_to_multimodal_model
 }
 
 PER_ALG_DICT = {

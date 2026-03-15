@@ -1,14 +1,14 @@
 # @package _global_
-alg_name: MELO
-model_name: /data2/hmpiao/FME/cached_model/Meta-Llama-3-8B
+alg_name: A3E
+model_name: /home/hmpiao/hmpiao/chkt/Meta-Llama-3-8B
 model_parallel: true
-device: 1
+device: 0
 max_length: 512
 fp16: false
 
 task: hall
 lora_task_type: CAUSAL_LM
-edit_type: PATCH
+edit_type: LORA
 #成对出现
 
 check_dir: null
@@ -27,22 +27,23 @@ grace:
   num_pert: 8 # only matters when using perturbation training
   key_id: -1
   num_edit_per_block: 4
-  num_block: 350
-  num_rank_per_block: 2
+  num_block: 4000
+  num_rank_per_block: 1
   metric_period: 400
-  edit_lr: 0.0001
+  edit_lr: 0.01
 model:
-  name: /data2/hmpiao/FME/cached_model/Meta-Llama-3-8B
+  name: /home/hmpiao/hmpiao/chkt/Meta-Llama-3-8B
   class_name: AutoModel
   tokenizer_class: AutoTokenizer
   tokenizer_name: null
   fan_in_fan_out: True
   target_modules:
-    - model.layers.31.mlp.up_proj
-    - model.layers.31.mlp.down_proj
-    - model.layers.31.mlp.gate_proj
+    #- model.layers.31.mlp.up_proj   #用于T-patcher
+    #- model.layers.31.mlp.down_proj   #用于T-patcher
+    - model.layers.27.mlp.up_proj   #用于melo
+    #- model.layers.27.mlp.down_proj  #用于melo_origin, grace
   pt: /data/hmpiao/FME/checkpoint # set this to 'hallucination' inside your checkpoint directory
-  grace_layer: model.layers.30.mlp.up_proj
+  grace_layer: model.layers.24.mlp.down_proj
 lora:
   cls_name:  /data2/hmpiao/FME/cached_model/distilbert-base-cased
   cls_class: AutoModel

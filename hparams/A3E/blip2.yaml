@@ -1,5 +1,5 @@
 # @package _global_
-alg_name: MELO
+alg_name: A3E
 model_name: blip2
 model_parallel: false
 device: 0

@@ -3,7 +3,7 @@ Contains evaluation utilities for pytorch-based rewriting methods.
 To use, simply call `compute_rewrite_quality_zsre` with the
 appropriate arguments, which returns a dictionary containing them.
 """
-from ..models.melo.melo import LORA
+from ..models.a3e.a3e import LORA
 import unicodedata
 
 import typing
@@ -92,7 +92,7 @@ def compute_edit_quality(
                                             record['portability'][portability_key]['ground_truth'], device=device)
             )
     if test_generation:
-        if hparams.alg_name == 'GRACE':
+        if hparams.alg_name == 'A3E':
             ret['fluency'] = test_generation_quality(model=model,tok=tok,prefixes=rewrite_prompts if isinstance(rewrite_prompts,list) else [rewrite_prompts,], max_out_len=100, vanilla_generation=True)
         else:
             ret['fluency'] = test_generation_quality(model=model,tok=tok,prefixes=rewrite_prompts if isinstance(rewrite_prompts,list) else [rewrite_prompts,], max_out_len=100, vanilla_generation=False)
@@ -119,7 +119,7 @@ def compute_rewrite_or_rephrase_quality(
         ret = {
             f"{key}_ppl": ppl
         }
-    elif hparams.alg_name=="GRACE" or hparams.alg_name=="MELO" or hparams.alg_name=="KN" or hparams.alg_name=="ROME":
+    elif hparams.alg_name=="A3E" or hparams.alg_name=="KN" or hparams.alg_name=="ROME":
         # ppl = PPL(model, tok, prompt, target_new, device)
         if 't5' in model_name.lower():
             acc = test_seq2seq_batch_prediction_acc(model, tok, hparams, prompt, target_new, device)

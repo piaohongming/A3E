@@ -1,5 +1,5 @@
 # @package _global_
-alg_name: MELO
+alg_name: A3E
 model_name: /data2/hmpiao/FME/cached_model/gpt2-xl
 model_parallel: false
 device: 0
