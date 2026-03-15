@@ -1,6 +1,6 @@
 # A3E Usage
 
-- This version includes an initial A3E implementation and testing pipeline.
+- This version includes an initial A3E implementation and testing pipeline. The full version is on-going.
 
 ## 1) Entry and dependencies
 
