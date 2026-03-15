@@ -37,8 +37,6 @@ from ..utils import (
     _get_submodules,
     transpose,
 )
-METHOD = "grace" #t-patcher, grace, melo_origin, rome_style
-
 LAST_INPUT_TOKEN = False
 I = -1
 ONLY_ONE_QUESTION = None
@@ -2076,32 +2074,12 @@ class LoraLayer:
         self.lora_dropout.update(nn.ModuleDict({adapter_name: lora_dropout_layer}))
         # Actual trainable parameters
         if r > 0:
-            #melo
-            if METHOD == "melo":
-                self.lora_A = nn.ParameterDict({adapter_name: nn.Parameter(self.weight.new_zeros((self.in_features, r)))})
-                self.lora_B = nn.ParameterDict({adapter_name: nn.Parameter(self.weight.new_zeros((r, self.out_features)))})
-            #grace
-            if METHOD == "grace":
-                self.lora_A = nn.ParameterDict({adapter_name: nn.Parameter(self.weight.new_zeros((self.out_features, r)))})
-                self.lora_B = nn.ParameterDict({adapter_name: nn.Parameter(self.weight.new_zeros((r, self.out_features)))})
-            #t-patcher
-            if METHOD == "t-patcher":
-                self.lora_A = nn.ParameterDict({adapter_name: nn.Parameter(self.weight.new_zeros((self.in_features, r)))})
-                self.lora_B = nn.ParameterDict({adapter_name: nn.Parameter(self.weight.new_zeros((r, self.out_features)))})
-                self.lora_C = nn.ParameterDict({adapter_name: nn.Parameter(self.weight.new_zeros((r)))})
-            #melo origin
-            if METHOD == "melo_origin":
-                self.lora_A = nn.ParameterDict({adapter_name: nn.Parameter(self.weight.new_zeros((self.in_features, r)))})
-                self.lora_B = nn.ParameterDict({adapter_name: nn.Parameter(self.weight.new_zeros((r, self.out_features)))})
-            #rome_style
-            if METHOD == "rome_style":
-                self.lora_A = nn.ParameterDict({adapter_name: nn.Parameter(self.weight.new_zeros((self.in_features, r)))})
-                self.lora_B = nn.ParameterDict({adapter_name: nn.Parameter(self.weight.new_zeros((r, self.out_features)))})
+            self.lora_A = nn.ParameterDict({adapter_name: nn.Parameter(self.weight.new_zeros((self.in_features, r)))})
+            self.lora_B = nn.ParameterDict({adapter_name: nn.Parameter(self.weight.new_zeros((r, self.out_features)))})
             self.nd_lora_A.update_dynamic(r, num_rank_per_block)
             self.nd_lora_B.update_dynamic(r,num_rank_per_block)
             self.scaling[adapter_name] = lora_alpha / r
         if init_lora_weights:
-            print("cpjlllcpjlllcpjlll")
             self.reset_lora_parameters(adapter_name)
         self.to(self.weight.device)
 
@@ -2501,14 +2479,9 @@ class Linear(nn.Linear, LoraLayer):
                 self.unmerge()
             result = F.linear(x, transpose(self.weight, self.fan_in_fan_out), bias=self.bias)
         elif self.r[self.active_adapter] > 0 and not self.merged:
-            if METHOD == "t-patcher" and "down_proj" in self.key:
-                result = F.linear(x[0:14336], transpose(self.weight, self.fan_in_fan_out), bias=self.bias)
-            else:
-                result = F.linear(x, transpose(self.weight, self.fan_in_fan_out), bias=self.bias)
+            result = F.linear(x, transpose(self.weight, self.fan_in_fan_out), bias=self.bias)
             lora_A = self.nd_lora_A(self.lora_A[self.active_adapter].T).mT
             lora_B = self.nd_lora_B(self.lora_B[self.active_adapter])
-            if METHOD == "t-patcher":
-                lora_C = self.lora_C[self.active_adapter][LORA_BLOCK_MAPPING].unsqueeze(0).unsqueeze(0).repeat(result.shape[0], result.shape[1], 1)
             #print(f'phmphmcnmcnmcnmphmphm:{lora_A.shape} {lora_B.shape}')
             #print(x.shape)
             #print((self.lora_dropout[self.active_adapter](x) @ lora_A).shape)
@@ -2519,45 +2492,16 @@ class Linear(nn.Linear, LoraLayer):
             
             mask = torch.zeros((result.shape[1], result.shape[1])).to(result.device)
             if result.shape[1] > 1:
-                #melo
-                if METHOD == "melo":
-                    if lora_A.shape[2] > rank and not SAVE_REPRESENTATION:
-                        #print(KEY_ID)
-                        #print(result.shape[1])
-                        for key in range(result.shape[1]-1, result.shape[1]):
-                            mask[key][key] = 0
-                    else:
-                        for key in range(KEY_ID, result.shape[1]):
-                            mask[key][key] = 1
+                if lora_A.shape[2] > rank and not SAVE_REPRESENTATION:
+                    for key in range(result.shape[1]-1, result.shape[1]):
+                        mask[key][key] = 0
+                else:
+                    for key in range(KEY_ID, result.shape[1]):
+                        mask[key][key] = 1
 
-                    if BEAM:
-                        for key in range(result.shape[1]-1, result.shape[1]):
-                            mask[key][key] = 1
-                #t-patcher
-                if METHOD == "t-patcher":
-                    for key in range(0, result.shape[1]):
+                if BEAM:
+                    for key in range(result.shape[1]-1, result.shape[1]):
                         mask[key][key] = 1
-                #grace
-                if METHOD == "grace":
-                    if lora_A.shape[2] > rank and not SAVE_REPRESENTATION:
-                        for key in range(result.shape[1]-1, result.shape[1]):
-                            mask[key][key] = 0
-                    else:
-                        mask[KEY_ID][KEY_ID] = 1
-                #melo_origin
-                if METHOD == "melo_origin":
-                    for key in range(0, result.shape[1]):
-                        mask[key][key] = 1
-                #rome_style
-                if METHOD == "rome_style":
-                    if lora_A.shape[2] > rank and not SAVE_REPRESENTATION:
-                        #print(KEY_ID)
-                        #print(result.shape[1])
-                        for key in range(result.shape[1]-1, result.shape[1]):
-                            mask[key][key] = 0
-                    else:
-                        for key in range(SUBJECT_KEY_ID, SUBJECT_KEY_ID+1):
-                            mask[key][key] = 1
                 
                 ALREADY = 0
 
@@ -2660,30 +2604,8 @@ class Linear(nn.Linear, LoraLayer):
                 '''
                 
             else:
-                #mask[0][0] = 0
-                #melo
-                if METHOD == "melo":
-                    mask[0][0] = 1
-                    ALREADY = ALREADY + 1
-                #grace
-                if METHOD == "grace":
-                    if LAST_INPUT_TOKEN:
-                        mask[0][0] = 1
-                    else:
-                        mask[0][0] = 0
-                    ALREADY = ALREADY + 1
-                #t-patcher
-                if METHOD == "t-patcher":
-                    mask[0][0] = 1
-                    ALREADY = ALREADY + 1
-                #melo_origin
-                if METHOD == "melo_origin":
-                    mask[0][0] = 1
-                    ALREADY = ALREADY + 1
-                #rome_style
-                if METHOD == "rome_style":
-                    mask[0][0] = 0
-                    ALREADY = ALREADY + 1
+                mask[0][0] = 1
+                ALREADY = ALREADY + 1
                 '''
                 print(f"max sub1 of {ALREADY}: {max(COS_KNOWLEDGE_1_SUBJECT)}")
                 print(f"max sub2 of {ALREADY}: {max(COS_KNOWLEDGE_2_SUBJECT)}")
@@ -2794,9 +2716,7 @@ class Linear(nn.Linear, LoraLayer):
             #lora_A = torch.ones_like(lora_A, device=lora_A.device)
             #连续版
             if SAVE_REPRESENTATION_SR or COMPARE:
-                lora_A[:, :, :] = lora_A[:, :, :] * 0 
-                if METHOD == "t-patcher":
-                    lora_C[:, :, :] = lora_C[:, :, :] * 0 
+                lora_A[:, :, :] = lora_A[:, :, :] * 0
             '''
             if self.mask_answer_list is not None:
                 lora_A[:, :, 2*self.mask_answer_list] = lora_A[:, :, 2*self.mask_answer_list] * 0 
@@ -2806,15 +2726,11 @@ class Linear(nn.Linear, LoraLayer):
             if lora_A.shape[2] > rank:
                 if SAVE_REPRESENTATION:
                     
-                    lora_A[:, :, 0:-rank] = lora_A[:, :, 0:-rank] * 0 
-                    if METHOD == "t-patcher":
-                        lora_C[:, :, 0:-rank] = lora_C[:, :, 0:-rank] * 0 
+                    lora_A[:, :, 0:-rank] = lora_A[:, :, 0:-rank] * 0
                 else:
                     
                     if COMPARE or (not BEAM and result.shape[1] > 1):
-                        lora_A[:, :, :] = lora_A[:, :, :] * 0  
-                        if METHOD == "t-patcher":
-                            lora_C[:, :, :] = lora_C[:, :, :] * 0
+                        lora_A[:, :, :] = lora_A[:, :, :] * 0
                     else:
                         
                         #TODO: 这里是softmax+topk取
@@ -2847,11 +2763,6 @@ class Linear(nn.Linear, LoraLayer):
                             lora_A[:, :, :] = lora_A[:, :, :] * 0
                             lora_A[:, :, rank*lora_index] = lora_A_copy[:, :, rank*lora_index]  
                             lora_A[:, :, rank*lora_index+rank-1] = lora_A_copy[:, :, rank*lora_index+rank-1]
-                            if METHOD == "t-patcher":
-                                lora_C_copy = lora_C.clone()
-                                lora_C[:, :, :] = lora_C[:, :, :] * 0
-                                lora_C[:, :, rank*lora_index] = lora_C_copy[:, :, rank*lora_index]  
-                                lora_C[:, :, rank*lora_index+rank-1] = lora_C_copy[:, :, rank*lora_index+rank-1] 
                             lora_weight = self.lora_weight.weight.clone()
                             lora_weight = lora_weight * self.lora_weight_for_training
                             lora_weight_copy = self.lora_weight.weight.clone()
@@ -2930,14 +2841,8 @@ class Linear(nn.Linear, LoraLayer):
                             lora_A = lora_A.reshape(lora_A.shape[0], lora_A.shape[1], int(lora_A.shape[2] / rank), rank)
                             lora_A = torch.einsum('abcd,ec->abecd', lora_A, lora_weight)
                             lora_A = lora_A.reshape(lora_A.shape[0], lora_A.shape[1], -1)
-                            if METHOD == "t-patcher":
-                                lora_C = lora_C.reshape(lora_C.shape[0], lora_C.shape[1], int(lora_C.shape[2] / rank), rank)
-                                lora_C = torch.einsum('abcd,ec->abecd', lora_C, lora_weight)
-                                lora_C = lora_C.reshape(lora_C.shape[0], lora_C.shape[1], -1)
                         else:
                             lora_A[:, :, :] = lora_A[:, :, :] * 0
-                            if METHOD == "t-patcher":
-                                lora_C[:, :, :] = lora_C[:, :, :] * 0
                         
             '''
             if lora_A.shape[2] > 2 and not SAVE_REPRESENTATION:
@@ -2971,31 +2876,8 @@ class Linear(nn.Linear, LoraLayer):
                                 #print(lora_B[:, rank*torch.min(max_index):rank*torch.min(max_index)+rank, MASK_MATRIX_REAL[torch.min(max_index)]])
                                 #print(lora_B[:, rank*torch.max(max_index):rank*torch.max(max_index)+rank, MASK_MATRIX_REAL[torch.min(max_index)]])
                                 
-                                #melo
-                                if METHOD == "melo":
-                                    #大实验使用
-                                    '''
-                                    for m_i in max_index:
-                                        lora_B[:, rank*m_i:rank*m_i+rank, MASK_MATRIX[m_i]] = lora_B[:, rank*m_i:rank*m_i+rank, MASK_MATRIX[m_i]] * 0
-                                    '''
-                                    
-                                    #小实验使用
-                                    
-                                    lora_B[:, rank*torch.min(max_index):rank*torch.min(max_index)+rank, MASK_MATRIX[torch.min(max_index)]] = lora_B[:, rank*torch.min(max_index):rank*torch.min(max_index)+rank, MASK_MATRIX[torch.min(max_index)]] * 0
-                                    lora_B[:, rank*torch.max(max_index):rank*torch.max(max_index)+rank, MASK_MATRIX[torch.max(max_index)]] = lora_B[:, rank*torch.max(max_index):rank*torch.max(max_index)+rank, MASK_MATRIX[torch.max(max_index)]] * 0
-                                    
-                                #grace
-                                if METHOD == "grace":
-                                    pass
-                                #t-patcher
-                                if METHOD == "t-patcher":
-                                    pass
-                                #melo_origin
-                                if METHOD == "melo_origin":
-                                    pass
-                                #rome_style
-                                if METHOD == "rome_style":
-                                    pass
+                                lora_B[:, rank*torch.min(max_index):rank*torch.min(max_index)+rank, MASK_MATRIX[torch.min(max_index)]] = lora_B[:, rank*torch.min(max_index):rank*torch.min(max_index)+rank, MASK_MATRIX[torch.min(max_index)]] * 0
+                                lora_B[:, rank*torch.max(max_index):rank*torch.max(max_index)+rank, MASK_MATRIX[torch.max(max_index)]] = lora_B[:, rank*torch.max(max_index):rank*torch.max(max_index)+rank, MASK_MATRIX[torch.max(max_index)]] * 0
                                 
                                 if not CAL_PROB:
                                     mask_1 = MASK_MATRIX_REAL[torch.min(max_index)].detach().cpu().numpy().tolist()
@@ -3020,16 +2902,9 @@ class Linear(nn.Linear, LoraLayer):
                         else:
                             pass
                         
-                    if METHOD == "melo":
-                        lora_A = nn.functional.normalize(lora_A, dim=1)
-                        #print(x.shape)
-                        x = nn.functional.normalize(x, dim=2)
-                        #lora_B = nn.functional.normalize(lora_B, dim=2) 
-                        lora_A_out = self.lora_dropout[self.active_adapter](x) @ lora_A
-                        #print(lora_A_out)
-
-                    if METHOD == "melo_origin":
-                        lora_A_out = self.lora_dropout[self.active_adapter](x) @ lora_A
+                    lora_A = nn.functional.normalize(lora_A, dim=1)
+                    x = nn.functional.normalize(x, dim=2)
+                    lora_A_out = self.lora_dropout[self.active_adapter](x) @ lora_A
                     '''
                     if (1000*lora_A_out[0][0][2])**2<100 and not COMPARE:
                         lora_A_out[0][0][2] = 0
@@ -3051,83 +2926,21 @@ class Linear(nn.Linear, LoraLayer):
                                 lora_A_out[:, :, rank*torch.min(max_index):rank*torch.min(max_index)+rank] = 1 
                                 lora_A_out[:, :, rank*torch.max(max_index):rank*torch.max(max_index)+rank] = 1
                     '''
-                    #melo
-                    if METHOD == "melo":
-                        if not COMPARE:
-                            #大实验使用
-                            '''
-                            result_final = None
-                            for m_i in max_index:
-                                if result_final is None:
-                                    result_1 = lora_A_out[:, :, rank*m_i:rank*m_i+rank] @ lora_B[:, rank*m_i:rank*m_i+rank, :]
-                                    result_final = result_1.clone()
-                                else:
-                                    result_1 = lora_A_out[:, :, rank*m_i:rank*m_i+rank] @ lora_B[:, rank*m_i:rank*m_i+rank, :]
-                                    result_2 = result_final.clone()
-                                    result_final = result_final + result_1.clone()
-                                    result_final[(result_1>torch.zeros_like(result_1)) * (result_2<torch.zeros_like(result_2))] = result_final[(result_1>torch.zeros_like(result_1)) * (result_2<torch.zeros_like(result_2))] * 0
-                                    result_final[(result_1<torch.zeros_like(result_1)) * (result_2>torch.zeros_like(result_2))] = result_final[(result_1<torch.zeros_like(result_1)) * (result_2>torch.zeros_like(result_2))] * 0
-                            
-                            if result_final is None:
-                                result_final = torch.zeros_like(result, device=result.device)
-                            '''
-                            #小实验使用
-                            
-                            result_1 = lora_A_out[:, :, rank*torch.min(max_index):rank*torch.min(max_index)+rank] @ lora_B[:, rank*torch.min(max_index):rank*torch.min(max_index)+rank, :]
-                            result_2 = lora_A_out[:, :, rank*torch.max(max_index):rank*torch.max(max_index)+rank] @ lora_B[:, rank*torch.max(max_index):rank*torch.max(max_index)+rank, :]
-                            
-                        
-                            result_final = result_1 + result_2
-                            result_final[(result_1>torch.zeros_like(result_1)) * (result_2<torch.zeros_like(result_2))] = result_final[(result_1>torch.zeros_like(result_1)) * (result_2<torch.zeros_like(result_2))] * 0
-                            result_final[(result_1<torch.zeros_like(result_1)) * (result_2>torch.zeros_like(result_2))] = result_final[(result_1<torch.zeros_like(result_1)) * (result_2>torch.zeros_like(result_2))] * 0
-                            
-                            CONTR = 0
-                            CONTR = CONTR + ((result_1>torch.zeros_like(result_1)) * (result_2<torch.zeros_like(result_2))).sum().item() + \
-                            ((result_1<torch.zeros_like(result_1)) * (result_2>torch.zeros_like(result_2))).sum().item()
-                            
-                            result = result + torch.einsum('km,bkd->bmd', mask, result_final \
-                                    * self.scaling[self.active_adapter])
-                        else:
-                            result = result + torch.einsum('km,bkd->bmd', mask, (lora_A_out @ lora_B) \
-                                    * self.scaling[self.active_adapter])
-                    
-                    #grace
-                    if METHOD == "grace":
-                        if not COMPARE:
-                            add_representation = torch.sum(lora_A, dim=2).squeeze().repeat(result.shape[1],1).unsqueeze(0)
-                            if LAST_INPUT_TOKEN:
-                                result = torch.einsum('km,bkd->bmd', mask, add_representation)
-                            else:
-                                result = result
-                        else:
-                            result = result
-                    
-                    #t-patcher
-                    if METHOD == "t-patcher":
-                        if not COMPARE:
-                            if "up_proj" in self.key:
-                                extra_weight = self.lora_dropout[self.active_adapter](x) @ lora_A + lora_C
-                                print("cnmphmhhh")
-                                print(extra_weight.shape)
-                                for e_w in range(extra_weight.shape[2]):
-                                    if e_w != I:
-                                        extra_weight[:, :, e_w] = extra_weight[:, :, e_w] * 0
-                                #result = torch.cat((result, add_result), dim=2)
-                                result = result
-                            elif "down_proj" in self.key:
-                                #result = result + torch.einsum('km,bkd->bmd', mask, (x[:, :, 14336:] @ lora_B) \
-                                result = result + torch.einsum('km,bkd->bmd', mask, (F.relu(extra_weight) @ lora_B) \
-                                    * self.scaling[self.active_adapter])
-                        else:
-                            result = result
+                    if not COMPARE:
+                        result_1 = lora_A_out[:, :, rank*torch.min(max_index):rank*torch.min(max_index)+rank] @ lora_B[:, rank*torch.min(max_index):rank*torch.min(max_index)+rank, :]
+                        result_2 = lora_A_out[:, :, rank*torch.max(max_index):rank*torch.max(max_index)+rank] @ lora_B[:, rank*torch.max(max_index):rank*torch.max(max_index)+rank, :]
 
-                    #melo_origin
-                    if METHOD == "melo_origin":
-                        result = result + torch.einsum('km,bkd->bmd', mask, (lora_A_out @ lora_B) \
+                        result_final = result_1 + result_2
+                        result_final[(result_1>torch.zeros_like(result_1)) * (result_2<torch.zeros_like(result_2))] = result_final[(result_1>torch.zeros_like(result_1)) * (result_2<torch.zeros_like(result_2))] * 0
+                        result_final[(result_1<torch.zeros_like(result_1)) * (result_2>torch.zeros_like(result_2))] = result_final[(result_1<torch.zeros_like(result_1)) * (result_2>torch.zeros_like(result_2))] * 0
+
+                        CONTR = 0
+                        CONTR = CONTR + ((result_1>torch.zeros_like(result_1)) * (result_2<torch.zeros_like(result_2))).sum().item() + \
+                        ((result_1<torch.zeros_like(result_1)) * (result_2>torch.zeros_like(result_2))).sum().item()
+
+                        result = result + torch.einsum('km,bkd->bmd', mask, result_final \
                                 * self.scaling[self.active_adapter])
-                    
-                    #rome_style
-                    if METHOD == "rome_style":
+                    else:
                         result = result + torch.einsum('km,bkd->bmd', mask, (lora_A_out @ lora_B) \
                                 * self.scaling[self.active_adapter])
                     
@@ -3266,53 +3079,18 @@ class Linear(nn.Linear, LoraLayer):
                         else:
                             lora_B[:, :, 0:int(lora_B.shape[2]*7/8)] = lora_B[:, :, 0:int(lora_B.shape[2]*7/8)] * 0
                     '''
-                    #melo
-                    if METHOD == "melo":
-                        if lora_A.shape[2] > rank:
-                            lora_B[:, -rank:, MASK_MATRIX[-1]] = lora_B[:, -rank:, MASK_MATRIX[-1]] * 0
-                            
-                            
-                        else:
-                            lora_B = lora_B.repeat(x.shape[0],1,1)
-                            random_number_list = list()
-                            for ba in range(lora_B.shape[0]):
-                                #random_number = random.sample(list(range(0,int(448*6/8))),1)[0]
-                                #random_number_list.append(random_number)
-                                #randomized_mask = random.sample(MASK_MATRIX_REAL[-1].detach().cpu().numpy().tolist(), random_number)
-                                #lora_B[ba, :, randomized_mask] = lora_B[ba, :, randomized_mask] * 0
-                                lora_B[ba, :, MASK_MATRIX[-1]] = lora_B[ba, :, MASK_MATRIX[-1]] * 0
-                            #print("pampampampam")
-                            #print(x.shape[0])
-                            #print(random_number_list)
-                            #print(MASK_MATRIX_REAL[-1])
-                    #grace
-                    if METHOD == "grace":
-                        pass
-                    #t-patcher
-                    if METHOD == "t-patcher":
-                        pass
-                    #melo_origin
-                    if METHOD == "melo_origin":
-                        pass
-                    #rome_style
-                    if METHOD == "rome_style":
-                        pass
+                    if lora_A.shape[2] > rank:
+                        lora_B[:, -rank:, MASK_MATRIX[-1]] = lora_B[:, -rank:, MASK_MATRIX[-1]] * 0
+                    else:
+                        lora_B = lora_B.repeat(x.shape[0],1,1)
+                        for ba in range(lora_B.shape[0]):
+                            lora_B[ba, :, MASK_MATRIX[-1]] = lora_B[ba, :, MASK_MATRIX[-1]] * 0
                     
-                    if METHOD == "melo":
-                        lora_A = nn.functional.normalize(lora_A, dim=1)
-                        #lora_B = nn.functional.normalize(lora_B, dim=2) 
-                        x = nn.functional.normalize(x, dim=2)
-                        lora_A_out = self.lora_dropout[self.active_adapter](x) @ lora_A
-                        #print("nmknmknmk")
-                        #print(lora_A_out.shape)
+                    lora_A = nn.functional.normalize(lora_A, dim=1)
+                    x = nn.functional.normalize(x, dim=2)
+                    lora_A_out = self.lora_dropout[self.active_adapter](x) @ lora_A
 
-                    if METHOD == "melo_origin":
-                        
-                        lora_A_out = self.lora_dropout[self.active_adapter](x) @ lora_A
-                        #print("nmknmknmk")
-                        #print(lora_A_out.shape)
-                        
-                    if METHOD == "melo" or METHOD == "melo_origin":  
+                    if True:
                         try:
                             #print(lora_A.shape)
                             #print(torch.norm(lora_A, p=2, dim=2).shape)
@@ -3367,64 +3145,8 @@ class Linear(nn.Linear, LoraLayer):
                             
                         except:
                             pass
-                    #print(torch.mean(torch.norm(lora_A_out[:, KEY_ID, :], p=2, dim=0)))
-                    #lora_A_out = torch.ones_like(lora_A_out, device=lora_A_out.device)
-                    #melo
-                    if METHOD == "melo":
-                        result = result + torch.einsum('km,bkd->bmd', mask, (lora_A_out @ lora_B) \
-                                * self.scaling[self.active_adapter])
-                    
-                    #grace
-                    if METHOD == "grace":
-                        if not SAVE_REPRESENTATION and lora_A.shape[2] > rank:
-                            result = result
-                        else:
-                            add_representation = torch.sum(lora_A, dim=2).squeeze().repeat(result.shape[1],1).unsqueeze(0)
-                            result[:, KEY_ID, :] = torch.einsum('km,bkd->bmd', mask, add_representation)[:, KEY_ID, :]
-
-                    #t-patcher
-                    if METHOD == "t-patcher":
-                        if "up_proj" in self.key:
-                            extra_weight = self.lora_dropout[self.active_adapter](x) @ lora_A + lora_C
-                            #print(self.memory.shape)
-                            #print(lora_A.shape)
-                            if lora_A.shape[2] <= rank:
-                                memory_result = self.lora_dropout[self.active_adapter](self.memory) @ lora_A + lora_C[0:1, 0:1, :].repeat(self.memory.shape[0], 1, 1)
-                                add_result_reshape = extra_weight[0][KEY_ID].unsqueeze(0).unsqueeze(0).repeat(memory_result.shape[0], 1, 1)
-                                act_loss = 0.0 - add_result_reshape
-                                act_loss = torch.exp(act_loss)
-                                act_loss = torch.mean(act_loss)
-                                l1_loss = memory_result - add_result_reshape - 0.0
-                                #print(memory_result.shape)
-                                #print(add_result_reshape.shape)
-                                l1_loss = torch.exp(l1_loss)
-                                #print(l1_loss.shape)
-                                l1_loss = torch.mean(l1_loss, dim=1).squeeze()
-                                #print(l1_loss.shape)
-                                l1_loss = torch.topk(l1_loss, k=100)[0]
-                                l1_loss = torch.mean(l1_loss)
-                                l2_loss = memory_result - 0.0
-                                l2_loss = torch.exp(l2_loss)
-                                l2_loss = torch.mean(l2_loss, dim=1).squeeze()
-                                l2_loss = torch.topk(l2_loss, k=100)[0]
-                                l2_loss = torch.mean(l2_loss)
-                                MEMORYLOSS = act_loss + l1_loss + l2_loss
-                            #result = torch.cat((result, add_result), dim=2)
-                            result = result
-                        
-                        elif "down_proj" in self.key:
-                            result = result + torch.einsum('km,bkd->bmd', mask, (F.relu(extra_weight) @ lora_B) \
-                                * self.scaling[self.active_adapter])
-                            
-
-                    #melo_origin
-                    if METHOD == "melo_origin":
-                        result = result + torch.einsum('km,bkd->bmd', mask, (lora_A_out @ lora_B) \
-                                * self.scaling[self.active_adapter])
-                    #rome_style
-                    if METHOD == "rome_style":
-                        result = result + torch.einsum('km,bkd->bmd', mask, (lora_A_out @ lora_B) \
-                                * self.scaling[self.active_adapter])
+                    result = result + torch.einsum('km,bkd->bmd', mask, (lora_A_out @ lora_B) \
+                            * self.scaling[self.active_adapter])
                     '''
                     if "up_proj" in self.key:
                         #print(self.key)

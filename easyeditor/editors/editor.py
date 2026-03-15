@@ -27,7 +27,6 @@ import re
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                     datefmt = '%m/%d/%Y %H:%M:%S',
                     level = logging.INFO)
-METHOD = "a3e"
 LOG = logging.getLogger(__name__)
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 
@@ -853,7 +852,6 @@ class BaseEditor:
              answer_tok,
              **kwargs
              ):
-        global METHOD 
         if isinstance(prompts, List):
             assert len(prompts) == len(target_new)
         else:
@@ -861,25 +859,6 @@ class BaseEditor:
         
         if hasattr(self.hparams, 'batch_size'):  # For Singleton Editing, bs=1
             self.hparams.batch_size = 1
-        
-        #memory = list()
-        #print("alg_name: {}".format(self.alg_name))
-        #print("length of memory: {}".format(len(kwargs["mem_requests"])))
-        if METHOD == "t-patcher" and len(self.memory) == 0:
-            #print("length of memory: {}".format(len(kwargs["mem_requests"])))
-            for i, mem_request in enumerate(kwargs["mem_requests"]):
-                with torch.no_grad(), nethook.TraceDict(
-                    self.model,
-                    list(self.hparams.model.target_modules),
-                    retain_input=True,
-                    retain_output=False
-                ) as td:
-                    rewrite_prompts = mem_request
-                    inp = make_inputs(self.tok, [rewrite_prompts])
-                    _ = self.model(**inp)
-                    #print(len(kwargs["mem_requests"]))
-                    #print(td[list(self.hparams.model.target_modules)[0]].input[0][-1].shape)
-                    self.memory.append(td[list(self.hparams.model.target_modules)[0]].input[0][-1].unsqueeze(0).unsqueeze(0))
         
         request = {
             'prompt': prompts,

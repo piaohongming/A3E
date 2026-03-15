@@ -24,7 +24,6 @@ from .peft_egg.src.peft.tuners.melo import LoraLayer, GraceLayer
 # from hooks import lora_backward_hook
 from .models import BertClassifier
 
-METHOD = "a3e"
 LOG = logging.getLogger(__name__)
 def translate_tokens(tokens, from_tok, to_tok):
     tokens = tokens.masked_fill(tokens == -100, from_tok.pad_token_id)
